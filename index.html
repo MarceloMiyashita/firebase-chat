@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" >
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet" href="css/materialize.min.css"  media="screen,projection"/>
+
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  </head>
+
+  <body>
+    <nav class="blue">
+      <div>
+        <a href="#" class="brand-logo center">CHAT</a>
+        <ul class="right">
+          <li> <a class="btn" id="bt_login" onclick="logar()">Logar</a>  </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="container">
+
+
+      <div class="row">
+        <div class="card">
+          <ul class="collection" id="lista">
+          </ul>
+        </div>
+      </div>
+      
+      <div id="preloader" class="progress">
+        <div class="determinate barra" style="width: 70%"></div>
+      </div>
+
+      <div class="row">
+        <form id="form">
+          <div class="input-field col s12">
+            <input id="campo" type="text">
+            <label>Mensagem</label>
+          </div>
+          <a onClick="callSubmit()"  class="btn right"> <i class="material-icons right">send</i>Enviar</a>
+          <input id="mediaCapture"class="hide" type="file" accept="image/*, capture=camera">
+          <a onclick="callFoto()" class="waves-effect waves-light btn"><i class="material-icons left">perm_media</i>Arquivo</a>
+        </form>
+      </div>
+
+
+
+    </div>
+
+
+    <!--Import jQuery before materialize.js-->
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script type="text/javascript" src="js/materialize.min.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.14.1/moment.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.14.1/locale/pt-br.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/3.2.1/firebase.js"></script>
+    <script>
+      // Initialize Firebase
+    //  var config = {
+    //    apiKey: "AIzaSyBfO89DhvlEESb2g-yjNSS-GK4lj2KGEk8",
+    //    authDomain: "aula08agosto.firebaseapp.com",
+    //    databaseURL: "https://aula08agosto.firebaseio.com",
+    //    storageBucket: "aula08agosto.appspot.com",
+   //   };
+
+  var config = {
+    apiKey: "AIzaSyCSMcMgsckH4E1dJ3N0H6HwhMewX7OksnY",
+    authDomain: "aula08082016.firebaseapp.com",
+    databaseURL: "https://aula08082016.firebaseio.com",
+    storageBucket: "aula08082016.appspot.com",
+    };
+
+
+      firebase.initializeApp(config);
+
+      var auth = firebase.auth();
+
+      var storage = firebase.storage();
+
+
+      auth.onAuthStateChanged(loginMudou);
+
+      var isLogado = false;
+
+      $("#preloader").hide();
+
+      function callSubmit(){
+        $("#form").submit();
+      }
+
+      $("#form").on("submit", function(event){
+        sendMessage();
+        event.preventDefault();
+      });
+
+      function callFoto(){
+        $("#mediaCapture").click();
+      }
+
+       $("#mediaCapture").on("change", function(event){
+          var file = event.target.files[0];
+       
+
+       var upload = storage.ref(file.name).put(file, {"contentType:" : file.type})
+       upload.on("state_changed", 
+       function(file){
+        $("#preloader").show();
+       var progresso = (file.bytesTransferred / file.totalBytes)*100;
+       console.log("subiu:" + progresso + "%"); 
+       $(".barra").width(progresso+"%");
+       }, 
+       
+        function (err){
+          alert("Deu ruim");
+        }, 
+        function(){
+          $("#preloader").hide();
+          console.log(upload.snapshot.downloadURL);
+          sendMessage(upload.snapshot.downloadURL);
+        })
+     });
+
+      function sendMessage(image){
+        console.log("sendMessage");
+          var currentUser = this.auth.currentUser;
+
+          if (isLogado && $("#campo").val() || image){
+            this.messagesRef.push({
+              name: currentUser.displayName,
+              text: $("#campo").val(),
+              image: image || "",
+              photoUrl : currentUser.photoURL,
+              timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(function(){
+              $("#campo").val("");
+            });
+          }
+      }
+
+
+      function loginMudou(user){
+        console.log(user);
+
+          if (user){
+            isLogado = true;
+            var userName = user.displayName;
+            $('#bt_login').html(userName + " (sair)");
+            loadMessages();
+          } else{
+            isLogado = false;
+            $('#bt_login').html("Logar");
+          }
+      }
+
+      //dontpad.com/unipar
+      var TEMPLATE =
+      '<li class="collection-item avatar">'+
+      '<img src="" alt="" class="circle">'+
+      '<span class="title">Title</span>'+
+      '<p class="name">First Line </p>'+
+      '<img src="" alt="" class="responsive-img">'+
+      '<p class="hora secondary-content">00:00</p>'
+      '</li>';
+
+      function addLista(key, name, text, photoUrl, timestamp, image){
+          var container = document.createElement("li");
+          container.innerHTML = TEMPLATE;
+
+          var li = container.firstChild;
+          $("#lista").append(li);
+
+          window.scrollTo(0,document.body.scrollHeight);
+
+          li.querySelector('.name').textContent = name;
+          li.querySelector('.hora').textContent = moment(timestamp).format("lll");
+          li.querySelector('.title').textContent = text;
+          li.querySelector('.circle').setAttribute('src', photoUrl || "https://tracker.moodle.org/secure/attachment/30912/f3.png");
+         li.querySelector('.responsive-img').setAttribute('src', image || "");
+
+      }
+
+     var som = new Audio("http://localhost:5000/chat/notification.mp3");
+
+      function loadMessages(){
+        this.messagesRef = firebase.database().ref("messagesX");
+
+        function setMessage(data){
+          var val = data.val();
+          som.play();
+
+          addLista(val.key, val.name, val.text, val.photoUrl,val.timestamp);
+        }
+
+        messagesRef.on("child_added", setMessage);
+      }
+
+      function logar(){
+        if (isLogado == false){
+          var provider = new firebase.auth.GoogleAuthProvider();
+          this.auth.signInWithPopup(provider);
+        }else{
+          this.auth.signOut();
+        }
+
+      }
+
+    </script>
+
+
+  </body>
+</html>
+
+<!-- Localized -->
